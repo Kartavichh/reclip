@@ -42,7 +42,17 @@ fn main() -> Result<()> {
             eprintln!("`reclip show` появится на Этапе 5.");
         }
         Command::List => {
-            eprintln!("`reclip list` появится на Этапе 4.");
+            let storage = Storage::open(reclip::storage::default_db_path()?)?;
+            let items = storage.list(reclip::storage::MAX_ITEMS)?;
+            if items.is_empty() {
+                // Пустая история — дружелюбное сообщение вместо пустого вывода (8.4).
+                println!("История пуста.");
+            } else {
+                // Новейшее сверху; нумерация с 1 (в пикере ей же соответствуют цифры).
+                for (index, item) in items.iter().enumerate() {
+                    println!("{:>3}. {}", index + 1, item.content.preview(80));
+                }
+            }
         }
     }
     Ok(())
