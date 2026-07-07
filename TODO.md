@@ -53,6 +53,13 @@
 - ✅ **6.3 Офлайн/прокси сборка.** Риск, проверяем на Этапе 0; при нужде `cargo vendor`. → `docs/06-build-install.md`
 - ✅ **6.4 Конфиг пользователя.** После MVP; пока дефолты в коде. → `docs/06-build-install.md`
 
+## 8. Технические решения (всплыли по ходу)
+- ✅ **8.1 Синхронность vs async.** Синхронно, без tokio. → `docs/08-tech-decisions.md`
+- ✅ **8.2 Логи и ошибки.** `log`+`env_logger` (stderr/journal), `anyhow`. → `docs/08-tech-decisions.md`
+- ✅ **8.3 Список зависимостей.** clap, rusqlite(bundled), arboard, gtk4, anyhow, directories, log, env_logger. → `docs/08-tech-decisions.md`
+- ✅ **8.4 Пограничные состояния.** Первый запуск/пустая история/демон не запущен. → `docs/08-tech-decisions.md`
+- ✅ **8.5 Тесты.** Юнит-тесты на storage и model; GUI — руками. → `docs/08-tech-decisions.md`
+
 ## 7. Структура кода
 - ✅ **7.1 Раскладка проекта.** Один crate; main.rs (clap) + lib.rs с модулями model/storage/clipboard/daemon/picker. → `docs/07-code-structure.md`
 - ✅ **7.2 Trait-абстракция буфера.** `Clipboard` с get_text/set_text, реализация на arboard. → `docs/07-code-structure.md`
