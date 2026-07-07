@@ -7,8 +7,6 @@ license = "MIT"
 
 # Зависимости добавляются по мере надобности по этапам (см. TODO.md).
 # Полный список утверждён в docs/08-tech-decisions.md (8.3).
-# Ещё НЕ подключены (появятся на своих этапах):
-#   gtk4           — Этап 5 (пикер); тянет libgtk-4-dev, поэтому откладываем
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
@@ -18,6 +16,7 @@ directories = "5"
 log = "0.4"
 env_logger = "0.11"
 fs2 = "0.4" # файловая блокировка (flock) для single-instance демона (3.3)
+gtk4 = "0.9" # окно пикера (Этап 5); требует системную libgtk-4-dev
 
 [[bin]]
 name = "reclip"

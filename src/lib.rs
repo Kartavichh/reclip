@@ -13,4 +13,5 @@
 pub mod clipboard;
 pub mod daemon;
 pub mod model;
+pub mod picker;
 pub mod storage;

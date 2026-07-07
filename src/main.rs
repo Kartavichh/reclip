@@ -7,7 +7,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
-use reclip::{daemon, storage::Storage};
+use reclip::{daemon, picker, storage::Storage};
 
 #[derive(Parser)]
 #[command(
@@ -39,7 +39,8 @@ fn main() -> Result<()> {
             daemon::run(storage)?;
         }
         Command::Show => {
-            eprintln!("`reclip show` появится на Этапе 5.");
+            let storage = Storage::open(reclip::storage::default_db_path()?)?;
+            picker::run(storage)?;
         }
         Command::List => {
             let storage = Storage::open(reclip::storage::default_db_path()?)?;
