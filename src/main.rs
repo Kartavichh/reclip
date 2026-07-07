@@ -7,6 +7,8 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+use reclip::{daemon, storage::Storage};
+
 #[derive(Parser)]
 #[command(
     name = "reclip",
@@ -32,7 +34,9 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Daemon => {
-            eprintln!("`reclip daemon` появится на Этапе 3.");
+            init_logging();
+            let storage = Storage::open(reclip::storage::default_db_path()?)?;
+            daemon::run(storage)?;
         }
         Command::Show => {
             eprintln!("`reclip show` появится на Этапе 5.");
@@ -42,4 +46,10 @@ fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Логи в stderr (их подхватит systemd → `journalctl --user`, 8.2).
+/// Уровень по умолчанию — `info`; переопределяется переменной `RUST_LOG`.
+fn init_logging() {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 }

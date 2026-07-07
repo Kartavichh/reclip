@@ -11,5 +11,6 @@
 //!   picker    — Этап 5
 
 pub mod clipboard;
+pub mod daemon;
 pub mod model;
 pub mod storage;
