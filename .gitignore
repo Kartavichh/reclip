@@ -8,3 +8,5 @@ Cargo.lock.orig
 .idea/
 .vscode/
 .DS_Store
+
+# Cargo lock не игнорируем (это бинарь-приложение) — но целевая папа сборки да

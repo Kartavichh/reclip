@@ -1,0 +1,13 @@
+[package]
+name = "reclip"
+version = "0.0.0"
+edition = "2021"
+description = "Менеджер истории буфера обмена (Win+V) для Linux GNOME/Wayland"
+license = "MIT"
+
+# ВНИМАНИЕ: это временный минимальный набор для Этапа 0 (проверка риска arboard).
+# Полный список зависимостей (8.3: clap, rusqlite, gtk4, directories, log/env_logger)
+# добавим на Этапе 1, когда убедимся, что arboard читает буфер на GNOME/Wayland.
+[dependencies]
+arboard = "3"
+anyhow = "1"
