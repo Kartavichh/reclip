@@ -14,11 +14,12 @@
   (б) `cargo` тянет крейты через proxychains без доп. настройки прокси.
   Раскладку модулей (7.1) разворачиваем на Этапе 1.
 
-- ⬜ **Этап 1 — Модель + хранилище.**
-  `model.rs` (`ClipItem`, enum `Content`), `storage.rs` (SQLite: открытие,
-  схема, `PRAGMA user_version`, WAL; операции add / дедуп-подъём / list /
-  обрезка до лимита; игнор пустого и >1 МБ). Юнит-тесты (8.5).
-  *Проверка: `cargo test` зелёный.*
+- ✅ **Этап 1 — Модель + хранилище.** (2026-07-07)
+  `model.rs` (`ClipItem`, enum `Content`, превью-строка), `storage.rs`
+  (SQLite WAL, схема + `PRAGMA user_version`, `add_text` с фильтрами 1.4/1.5,
+  дедуп-подъём через «удалить+вставить» → свежий id наверху, обрезка до 100).
+  Каркас CLI на `clap` (под-команды-заглушки). **11 юнит-тестов зелёные.**
+  Зависимости этапа: clap, rusqlite(bundled), anyhow, directories.
 
 - ⬜ **Этап 2 — Абстракция буфера.**
   `clipboard.rs`: trait `Clipboard` (7.2) + реализация `ArboardClipboard`.

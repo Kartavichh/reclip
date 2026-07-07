@@ -1,52 +1,45 @@
-//! Этап 0 — проверка риска.
+//! Точка входа: разбираем под-команду (`clap`) и вызываем нужный модуль.
+//! Под-команды: `reclip daemon` | `reclip show` | `reclip list` (docs/07, 7.1).
 //!
-//! Единственная задача этого кода: убедиться, что крейт `arboard` умеет читать
-//! системный буфер обмена на GNOME/Wayland. Это главный технический риск проекта
-//! (Mutter не даёт событий об изменении буфера — см. docs/03-daemon.md, п. 3.4).
-//!
-//! Если здесь напечатается текст, который вы скопировали, — риск снят, и мы
-//! переходим к Этапу 1 (модель + хранилище). Если нет — включаем план Б
-//! (`wl-clipboard-rs` / `xclip`).
-//!
-//! Весь этот файл будет переписан на Этапе 1 под нормальную структуру (7.1).
+//! На Этапе 1 реализованы модель и хранилище; сами под-команды пока заглушки —
+//! они наполнятся на своих этапах (list — Этап 4, daemon — Этап 3, show — Этап 5).
 
-use arboard::Clipboard;
+use anyhow::Result;
+use clap::{Parser, Subcommand};
 
-fn main() -> anyhow::Result<()> {
-    println!("reclip · проверка arboard на GNOME/Wayland\n");
+#[derive(Parser)]
+#[command(
+    name = "reclip",
+    version,
+    about = "Менеджер истории буфера обмена (Win+V) для Linux GNOME/Wayland"
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
 
-    // 1) Пытаемся подключиться к буферу обмена.
-    let mut clipboard = match Clipboard::new() {
-        Ok(cb) => {
-            println!("[ok] Подключились к буферу обмена (Clipboard::new).");
-            cb
+#[derive(Subcommand)]
+enum Command {
+    /// Фоновый демон: следит за буфером и наполняет историю.
+    Daemon,
+    /// Открыть окно выбора записи (пикер).
+    Show,
+    /// Напечатать историю в терминал.
+    List,
+}
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+    match cli.command {
+        Command::Daemon => {
+            eprintln!("`reclip daemon` появится на Этапе 3.");
         }
-        Err(e) => {
-            println!("[FAIL] Не удалось подключиться к буферу: {e}");
-            println!("       → нужен план Б (wl-clipboard-rs / xclip).");
-            return Err(e.into());
+        Command::Show => {
+            eprintln!("`reclip show` появится на Этапе 5.");
         }
-    };
-
-    // 2) Пытаемся прочитать текст.
-    match clipboard.get_text() {
-        Ok(text) => {
-            println!("[ok] Прочитали текст из буфера ({} символов):", text.chars().count());
-            println!("---8<---");
-            println!("{text}");
-            println!("--->8---");
-            println!("\nРиск снят: arboard читает буфер. Можно идти на Этап 1.");
-        }
-        Err(e) => {
-            // Пустой буфер или не-текст — это НЕ провал: arboard работает,
-            // просто читать нечего. Провал — только ошибка доступа.
-            println!("[info] Текст прочитать не вышло: {e}");
-            println!("       Если вы копировали текст перед запуском, а тут ошибка");
-            println!("       доступа — возможно, нужен план Б. Если буфер был пуст");
-            println!("       или там картинка — это нормально, просто скопируйте");
-            println!("       какой-нибудь текст и запустите снова.");
+        Command::List => {
+            eprintln!("`reclip list` появится на Этапе 4.");
         }
     }
-
     Ok(())
 }

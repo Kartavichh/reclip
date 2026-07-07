@@ -5,9 +5,22 @@ edition = "2021"
 description = "Менеджер истории буфера обмена (Win+V) для Linux GNOME/Wayland"
 license = "MIT"
 
-# ВНИМАНИЕ: это временный минимальный набор для Этапа 0 (проверка риска arboard).
-# Полный список зависимостей (8.3: clap, rusqlite, gtk4, directories, log/env_logger)
-# добавим на Этапе 1, когда убедимся, что arboard читает буфер на GNOME/Wayland.
+# Зависимости добавляются по мере надобности по этапам (см. TODO.md).
+# Полный список утверждён в docs/08-tech-decisions.md (8.3).
+# Ещё НЕ подключены (появятся на своих этапах):
+#   arboard        — Этап 2 (абстракция буфера)
+#   log/env_logger — Этап 3 (демон)
+#   gtk4           — Этап 5 (пикер); тянет libgtk-4-dev, поэтому откладываем
 [dependencies]
-arboard = "3"
+clap = { version = "4", features = ["derive"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
 anyhow = "1"
+directories = "5"
+
+[[bin]]
+name = "reclip"
+path = "src/main.rs"
+
+[lib]
+name = "reclip"
+path = "src/lib.rs"
