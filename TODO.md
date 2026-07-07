@@ -54,8 +54,8 @@
 - ✅ **6.4 Конфиг пользователя.** После MVP; пока дефолты в коде. → `docs/06-build-install.md`
 
 ## 7. Структура кода
-- ⬜ **7.1 Раскладка проекта.** Один бинарь + внутренняя lib: как разложить (cargo workspace? один crate с `lib.rs` + `main.rs`?).
-- ⬜ **7.2 Trait-абстракция буфера.** Финальная форма «переходника» для будущих X11/Wayland/Windows реализаций.
+- ✅ **7.1 Раскладка проекта.** Один crate; main.rs (clap) + lib.rs с модулями model/storage/clipboard/daemon/picker. → `docs/07-code-structure.md`
+- ✅ **7.2 Trait-абстракция буфера.** `Clipboard` с get_text/set_text, реализация на arboard. → `docs/07-code-structure.md`
 
 ---
 
