@@ -1,6 +1,6 @@
 [Unit]
 Description=reclip — демон истории буфера обмена
-Documentation=https://github.com/kartavich/reclip
+Documentation=https://github.com/Kartavichh/reclip
 # Демону нужен графический сеанс (доступ к буферу через дисплей), поэтому он
 # часть graphical-session и стартует после её появления.
 PartOf=graphical-session.target

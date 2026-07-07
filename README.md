@@ -27,7 +27,7 @@ sudo apt install build-essential libgtk-4-dev
 ## Установка
 
 ```bash
-git clone https://github.com/kartavich/reclip.git
+git clone https://github.com/Kartavichh/reclip.git
 cd reclip
 ./install.sh
 ```
