@@ -1,0 +1,10 @@
+# Rust
+/target
+**/*.rs.bk
+Cargo.lock.orig
+
+# Редакторы/ОС
+*.swp
+.idea/
+.vscode/
+.DS_Store
