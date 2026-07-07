@@ -1,0 +1,18 @@
+[Unit]
+Description=reclip — демон истории буфера обмена
+Documentation=https://github.com/kartavich/reclip
+# Демону нужен графический сеанс (доступ к буферу через дисплей), поэтому он
+# часть graphical-session и стартует после её появления.
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+# %h — домашний каталог пользователя (бинарь ставится в ~/.local/bin).
+ExecStart=%h/.local/bin/reclip daemon
+# Если демон упал — перезапустить (устойчивость к разовым сбоям).
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

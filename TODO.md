@@ -55,10 +55,13 @@
   строку через `GtkWindowExt::set_focus` после `present()`, иначе ↑/↓ не
   работали до первого нажатия.*
 
-- ⬜ **Этап 6 — Запуск и установка.**
-  systemd user-сервис `reclip.service` (3.2), `install.sh` (6.1) с проверкой
-  зависимостей (6.2), инструкция по `Super+V` в GNOME (4.1).
-  *Проверка: после install.sh демон стартует сам, Super+V открывает пикер.*
+- ✅ **Этап 6 — Запуск и установка.** (2026-07-07)
+  `dist/reclip.service` — systemd user-сервис (PartOf/WantedBy graphical-session,
+  Restart=on-failure). `install.sh` — проверка зависимостей (cargo/cc/gtk4),
+  `cargo build --release`, бинарь в `~/.local/bin`, сервис в `~/.config/systemd/
+  user`, `enable`+`import-environment`+`restart`, инструкция по `Super+V` (4.1).
+  Проверено вживую: сервис active+enabled, демон пишет буфер, `reclip list`
+  показывает свежие копирования. Остаётся ручной шаг — назначить Super+V.
 
 - ⬜ **Этап 7 — Полировка MVP.**
   Сквозной ручной тест (пункт 11), обновление `README`, мелкие правки.
