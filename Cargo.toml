@@ -8,12 +8,12 @@ license = "MIT"
 # Зависимости добавляются по мере надобности по этапам (см. TODO.md).
 # Полный список утверждён в docs/08-tech-decisions.md (8.3).
 # Ещё НЕ подключены (появятся на своих этапах):
-#   arboard        — Этап 2 (абстракция буфера)
 #   log/env_logger — Этап 3 (демон)
 #   gtk4           — Этап 5 (пикер); тянет libgtk-4-dev, поэтому откладываем
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
+arboard = "3"
 anyhow = "1"
 directories = "5"
 

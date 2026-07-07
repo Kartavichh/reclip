@@ -21,9 +21,11 @@
   Каркас CLI на `clap` (под-команды-заглушки). **11 юнит-тестов зелёные.**
   Зависимости этапа: clap, rusqlite(bundled), anyhow, directories.
 
-- ⬜ **Этап 2 — Абстракция буфера.**
-  `clipboard.rs`: trait `Clipboard` (7.2) + реализация `ArboardClipboard`.
-  *Проверка: чтение/запись буфера через trait работает.*
+- ✅ **Этап 2 — Абстракция буфера.** (2026-07-07)
+  `clipboard.rs`: trait `Clipboard` (get_text/set_text, 7.2), реализация
+  `ArboardClipboard` (пустой буфер → `Ok(None)`, не ошибка), плюс `MockClipboard`
+  для тестов логики без дисплея. Проверено: мок-roundtrip в `cargo test` и
+  живой roundtrip через `arboard` (`cargo test -- --ignored`) — оба зелёные.
 
 - ⬜ **Этап 3 — Демон.**
   `daemon.rs` + под-команда `reclip daemon`: один экземпляр (`flock`, 3.3),
