@@ -15,10 +15,19 @@ use fs2::FileExt;
 use log::{debug, info, warn};
 
 use crate::clipboard::{ArboardClipboard, Clipboard};
-use crate::storage::{AddOutcome, Storage};
+use crate::storage::{rgba_hash, AddOutcome, Storage};
 
 /// Интервал опроса буфера (3.1).
 pub const POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Что демон видел в буфере в прошлый тик — чтобы не переобрабатывать одно и то
+/// же каждые 500 мс (9.7). Текст сравниваем целиком, картинку — по хешу RGBA
+/// (сама картинка может весить мегабайты, хранить её копию ни к чему).
+#[derive(Debug, PartialEq, Eq)]
+enum LastSeen {
+    Text(String),
+    Image(String),
+}
 
 /// Запустить демон: захватить блокировку и крутить цикл опроса до завершения
 /// процесса. Возвращает ошибку, если демон уже запущен или не удалось
@@ -34,7 +43,7 @@ pub fn run(storage: Storage) -> Result<()> {
         POLL_INTERVAL.as_millis()
     );
 
-    let mut last_seen: Option<String> = None;
+    let mut last_seen: Option<LastSeen> = None;
     loop {
         match poll_once(&mut clipboard, &storage, &mut last_seen) {
             Ok(Some(AddOutcome::Added)) => debug!("новая запись добавлена в историю"),
@@ -48,34 +57,41 @@ pub fn run(storage: Storage) -> Result<()> {
     }
 }
 
-/// Одна итерация опроса: прочитать буфер и, если текст изменился, записать в
-/// историю. `last_seen` хранит последний обработанный текст, чтобы не писать одно
+/// Одна итерация опроса: прочитать буфер и, если содержимое изменилось, записать
+/// в историю. Приоритет — текст (дешевле и чаще); нет текста → пробуем картинку
+/// (9.7). `last_seen` хранит, что обработали в прошлый тик, чтобы не писать одно
 /// и то же каждые 500 мс. Возвращает результат записи (для логов/тестов) или
-/// `None`, если писать было нечего (буфер пуст/не-текст или не изменился).
+/// `None`, если писать было нечего (буфер пуст, не текст/картинка, или не изменился).
 ///
 /// Вынесено отдельно от [`run`], чтобы покрыть логику юнит-тестами без живого
 /// буфера и без бесконечного цикла.
 fn poll_once(
     clipboard: &mut dyn Clipboard,
     storage: &Storage,
-    last_seen: &mut Option<String>,
+    last_seen: &mut Option<LastSeen>,
 ) -> Result<Option<AddOutcome>> {
-    let text = match clipboard.get_text()? {
-        Some(text) => text,
-        None => return Ok(None), // в буфере пусто или не-текст
-    };
-
-    // Без изменений с прошлого раза — ничего не делаем.
-    if last_seen.as_deref() == Some(text.as_str()) {
-        return Ok(None);
+    // 1) Текст. Запоминаем ДО записи: даже если фильтр отбросит запись
+    //    (пустое/крупное), не будем переобрабатывать тот же текст на каждом тике.
+    if let Some(text) = clipboard.get_text()? {
+        if matches!(last_seen.as_ref(), Some(LastSeen::Text(t)) if t == &text) {
+            return Ok(None); // тот же текст, что и в прошлый раз
+        }
+        *last_seen = Some(LastSeen::Text(text.clone()));
+        return Ok(Some(storage.add_text(&text)?));
     }
 
-    // Запоминаем ДО записи: даже если фильтр отбросит запись (пустое/крупное),
-    // не будем повторно обрабатывать тот же текст на каждом тике.
-    *last_seen = Some(text.clone());
+    // 2) Картинка. Сравниваем по хешу RGBA — тем же, что использует storage для
+    //    дедупа, чтобы «та же картинка» трактовалась одинаково.
+    if let Some(img) = clipboard.get_image()? {
+        let fingerprint = rgba_hash(&img.rgba, img.width, img.height);
+        if matches!(last_seen.as_ref(), Some(LastSeen::Image(h)) if h == &fingerprint) {
+            return Ok(None); // та же картинка, что и в прошлый раз
+        }
+        *last_seen = Some(LastSeen::Image(fingerprint));
+        return Ok(Some(storage.add_image(&img.rgba, img.width, img.height)?));
+    }
 
-    let outcome = storage.add_text(&text)?;
-    Ok(Some(outcome))
+    Ok(None) // в буфере пусто или не текст и не картинка
 }
 
 /// Путь к lock-файлу: `$XDG_RUNTIME_DIR/reclip.lock` (3.3).
@@ -117,7 +133,7 @@ mod tests {
 
         assert_eq!(out, Some(AddOutcome::Added));
         assert_eq!(storage.count().unwrap(), 1);
-        assert_eq!(last, Some("привет".to_string()));
+        assert_eq!(last, Some(LastSeen::Text("привет".to_string())));
     }
 
     #[test]
@@ -196,6 +212,83 @@ mod tests {
         assert_eq!(out, Some(AddOutcome::Bumped));
         let items = storage.list(10).unwrap();
         assert_eq!(items[0].text().unwrap(), "a"); // "a" снова наверху
+        assert_eq!(storage.count().unwrap(), 2); // без дубликата
+    }
+
+    // --- Картинки (Этап И3) ---
+
+    use crate::clipboard::ClipImage;
+
+    fn image(fill: u8) -> ClipImage {
+        ClipImage { width: 2, height: 2, rgba: vec![fill; 2 * 2 * 4] }
+    }
+
+    #[test]
+    fn adds_new_image() {
+        let storage = Storage::open_in_memory().unwrap();
+        let mut cb = MockClipboard::new();
+        let mut last = None;
+
+        cb.put_image(image(100));
+        let out = poll_once(&mut cb, &storage, &mut last).unwrap();
+
+        assert_eq!(out, Some(AddOutcome::Added));
+        assert_eq!(storage.count().unwrap(), 1);
+        assert!(storage.list(10).unwrap()[0].image().is_some());
+    }
+
+    #[test]
+    fn unchanged_image_is_not_added_again() {
+        let storage = Storage::open_in_memory().unwrap();
+        let mut cb = MockClipboard::new();
+        let mut last = None;
+
+        cb.put_image(image(50));
+        poll_once(&mut cb, &storage, &mut last).unwrap();
+        // Картинка не менялась — второй опрос молчит (не переупаковывает PNG).
+        let out = poll_once(&mut cb, &storage, &mut last).unwrap();
+
+        assert_eq!(out, None);
+        assert_eq!(storage.count().unwrap(), 1);
+    }
+
+    #[test]
+    fn switching_between_text_and_image_records_both() {
+        let storage = Storage::open_in_memory().unwrap();
+        let mut cb = MockClipboard::new();
+        let mut last = None;
+
+        cb.put("текст");
+        assert_eq!(poll_once(&mut cb, &storage, &mut last).unwrap(), Some(AddOutcome::Added));
+        cb.put_image(image(7));
+        assert_eq!(poll_once(&mut cb, &storage, &mut last).unwrap(), Some(AddOutcome::Added));
+        cb.put("снова текст");
+        assert_eq!(poll_once(&mut cb, &storage, &mut last).unwrap(), Some(AddOutcome::Added));
+
+        assert_eq!(storage.count().unwrap(), 3);
+        let items = storage.list(10).unwrap();
+        assert_eq!(items[0].text(), Some("снова текст"));
+        assert!(items[1].image().is_some());
+        assert_eq!(items[2].text(), Some("текст"));
+    }
+
+    #[test]
+    fn reselecting_old_image_bumps_it_to_top() {
+        // Эхо (5.1) для картинок: пикер вернул старую картинку в буфер — демон
+        // видит изменение и через дедуп-по-хешу поднимает её наверх, без дубля.
+        let storage = Storage::open_in_memory().unwrap();
+        let mut cb = MockClipboard::new();
+        let mut last = None;
+
+        cb.put_image(image(1));
+        poll_once(&mut cb, &storage, &mut last).unwrap();
+        cb.put_image(image(2));
+        poll_once(&mut cb, &storage, &mut last).unwrap();
+        // Пикер вернул первую картинку:
+        cb.put_image(image(1));
+        let out = poll_once(&mut cb, &storage, &mut last).unwrap();
+
+        assert_eq!(out, Some(AddOutcome::Bumped));
         assert_eq!(storage.count().unwrap(), 2); // без дубликата
     }
 }
