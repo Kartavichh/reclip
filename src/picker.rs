@@ -19,11 +19,11 @@ use gtk4::gdk;
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{
-    Application, ApplicationWindow, EventControllerKey, Label, ListBox, ListBoxRow,
-    ScrolledWindow, SelectionMode,
+    Application, ApplicationWindow, Box as GtkBox, EventControllerKey, Label, ListBox, ListBoxRow,
+    Orientation, Picture, ScrolledWindow, SelectionMode,
 };
 
-use crate::model::ClipItem;
+use crate::model::{ClipItem, Content};
 use crate::storage::{Storage, MAX_ITEMS};
 
 const APP_ID: &str = "io.github.kartavich.reclip";
@@ -72,15 +72,8 @@ fn build_ui(app: &Application, items: Rc<Vec<ClipItem>>) {
 
         for item in items.iter() {
             let row = ListBoxRow::new();
-            let label = Label::builder()
-                .label(item.content.preview(80))
-                .xalign(0.0) // текст по левому краю
-                .margin_top(6)
-                .margin_bottom(6)
-                .margin_start(10)
-                .margin_end(10)
-                .build();
-            row.set_child(Some(&label));
+            let child = row_child(item);
+            row.set_child(Some(&child));
             list.append(&row);
         }
 
@@ -157,14 +150,87 @@ fn build_ui(app: &Application, items: Rc<Vec<ClipItem>>) {
 /// Положить выбранную запись в системный буфер и закрыть окно.
 ///
 /// Буфер пишем через GDK (родной клиент GTK — GNOME сохранит содержимое после
-/// выхода). Закрываем с небольшой задержкой, чтобы композитор успел принять
+/// выхода): текст через `set_text`, картинку — текстурой через `set_texture`
+/// (9.6). Закрываем с небольшой задержкой, чтобы композитор успел принять
 /// владение буфером до завершения процесса.
 fn commit_selection(window: &ApplicationWindow, items: &[ClipItem], idx: usize) {
-    let Some(text) = items.get(idx).and_then(ClipItem::text) else {
+    let Some(item) = items.get(idx) else {
         return;
     };
-    window.clipboard().set_text(text);
+    let clipboard = window.clipboard();
+    match &item.content {
+        Content::Text(text) => clipboard.set_text(text),
+        Content::Image { png, .. } => {
+            match gdk::Texture::from_bytes(&glib::Bytes::from(&png[..])) {
+                Ok(texture) => clipboard.set_texture(&texture),
+                Err(e) => {
+                    // Не должно случаться (PNG мы сами и записали), но на всякий
+                    // случай не роняем окно — пусть пользователь выберет другое.
+                    log::warn!("не удалось подготовить картинку для буфера: {e}");
+                    return;
+                }
+            }
+        }
+    }
 
     let w = window.clone();
     glib::timeout_add_local_once(Duration::from_millis(120), move || w.close());
+}
+
+/// Виджет содержимого строки списка: для текста — подпись-превью, для картинки —
+/// миниатюра плюс подпись «🖼 Ш×В». Если PNG почему-то не декодировался —
+/// откатываемся на одну подпись, строка всё равно выбирается.
+fn row_child(item: &ClipItem) -> gtk4::Widget {
+    let caption = item.content.preview(80);
+    match &item.content {
+        Content::Text(_) => preview_label(&caption).upcast(),
+        Content::Image { png, width, height } => {
+            match gdk::Texture::from_bytes(&glib::Bytes::from(&png[..])) {
+                Ok(texture) => image_row(&texture, *width, *height, &caption),
+                Err(_) => preview_label(&caption).upcast(),
+            }
+        }
+    }
+}
+
+/// Подпись-строка с типовыми отступами (текстовая запись или откат).
+fn preview_label(text: &str) -> Label {
+    Label::builder()
+        .label(text)
+        .xalign(0.0) // текст по левому краю
+        .margin_top(6)
+        .margin_bottom(6)
+        .margin_start(10)
+        .margin_end(10)
+        .build()
+}
+
+/// Строка-картинка: миниатюра фиксированной высоты (пропорции сохраняются) и
+/// подпись справа.
+fn image_row(texture: &gdk::Texture, width: u32, height: u32, caption: &str) -> gtk4::Widget {
+    const THUMB_H: i32 = 80;
+    let thumb_w = if height > 0 {
+        ((width as f64) * f64::from(THUMB_H) / f64::from(height)).round() as i32
+    } else {
+        THUMB_H
+    };
+    let thumb_w = thumb_w.clamp(16, 480);
+
+    let picture = Picture::for_paintable(texture);
+    picture.set_can_shrink(true);
+    picture.set_size_request(thumb_w, THUMB_H);
+
+    let label = Label::builder().label(caption).xalign(0.0).build();
+
+    let hbox = GtkBox::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(10)
+        .margin_top(6)
+        .margin_bottom(6)
+        .margin_start(10)
+        .margin_end(10)
+        .build();
+    hbox.append(&picture);
+    hbox.append(&label);
+    hbox.upcast()
 }
