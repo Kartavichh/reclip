@@ -1,6 +1,6 @@
 [package]
 name = "reclip"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Менеджер истории буфера обмена (Win+V) для Linux GNOME/Wayland"
 license = "MIT"
@@ -16,7 +16,12 @@ directories = "5"
 log = "0.4"
 env_logger = "0.11"
 fs2 = "0.4" # файловая блокировка (flock) для single-instance демона (3.3)
-gtk4 = "0.9" # окно пикера (Этап 5); требует системную libgtk-4-dev
+# окно пикера (Этап 5); требует системную libgtk-4-dev. Фича v4_6 — для
+# gdk::Texture::from_bytes (миниатюры/вставка картинок, Этап И4).
+gtk4 = { version = "0.9", features = ["v4_6"] }
+# PNG-кодек для картинок (Этап И1). default-features off — берём только png,
+# чтобы не тянуть все форматы. Чистый Rust, системных зависимостей нет.
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [[bin]]
 name = "reclip"

@@ -1167,7 +1167,7 @@ dependencies = [
 
 [[package]]
 name = "reclip"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -1176,6 +1176,7 @@ dependencies = [
  "env_logger",
  "fs2",
  "gtk4",
+ "image",
  "log",
  "rusqlite",
 ]

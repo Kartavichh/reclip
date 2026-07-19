@@ -2,21 +2,23 @@
 
 /// Содержимое одной записи буфера обмена.
 ///
-/// В MVP умеем только текст (1.1). Тип оформлен как `enum` заранее, чтобы
-/// позже добавить картинки (`Image(...)`) без перестройки остального кода:
-/// компилятор сам подсветит все места, где надо будет дописать новую ветку.
+/// Умеем текст (1.1) и картинки (docs/09-images.md). Картинка хранится уже
+/// закодированной в **PNG** (9.1) вместе с размерами — их показываем в подписи
+/// и используем при декодировании для вставки/миниатюры.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Content {
     /// Текстовая запись.
     Text(String),
-    // Image(...) — появится, когда возьёмся за поддержку картинок.
+    /// Картинка: PNG-байты + размеры в пикселях (9.1).
+    Image { png: Vec<u8>, width: u32, height: u32 },
 }
 
 impl Content {
     /// Короткая строка-превью для показа в списке (пикер/CLI).
     ///
-    /// Обрезает по количеству символов (не байт, чтобы не порвать UTF-8) и
-    /// схлопывает переводы строк в пробелы — одна запись = одна строка списка.
+    /// Для текста: обрезает по количеству символов (не байт, чтобы не порвать
+    /// UTF-8) и схлопывает переводы строк в пробелы — одна запись = одна строка.
+    /// Для картинки: подпись вида «🖼 Ш×В» (9.5).
     pub fn preview(&self, max_chars: usize) -> String {
         match self {
             Content::Text(text) => {
@@ -31,6 +33,7 @@ impl Content {
                 }
                 preview
             }
+            Content::Image { width, height, .. } => format!("🖼 {width}×{height}"),
         }
     }
 }
@@ -48,10 +51,19 @@ pub struct ClipItem {
 }
 
 impl ClipItem {
-    /// Удобный доступ к тексту (в MVP содержимое всегда текстовое).
+    /// Текст записи, если она текстовая (иначе `None`).
     pub fn text(&self) -> Option<&str> {
         match &self.content {
             Content::Text(t) => Some(t),
+            Content::Image { .. } => None,
+        }
+    }
+
+    /// Картинка записи как `(PNG-байты, ширина, высота)`, если она картиночная.
+    pub fn image(&self) -> Option<(&[u8], u32, u32)> {
+        match &self.content {
+            Content::Image { png, width, height } => Some((png, *width, *height)),
+            Content::Text(_) => None,
         }
     }
 }
@@ -82,5 +94,22 @@ mod tests {
     fn preview_trims_surrounding_whitespace() {
         let c = Content::Text("  привет  ".to_string());
         assert_eq!(c.preview(100), "привет");
+    }
+
+    #[test]
+    fn preview_of_image_shows_dimensions() {
+        let c = Content::Image { png: vec![], width: 1920, height: 1080 };
+        assert_eq!(c.preview(80), "🖼 1920×1080");
+    }
+
+    #[test]
+    fn image_accessor_returns_data_text_returns_none() {
+        let item = ClipItem {
+            id: 1,
+            content: Content::Image { png: vec![1, 2, 3], width: 4, height: 2 },
+            created_at: 0,
+        };
+        assert_eq!(item.text(), None);
+        assert_eq!(item.image(), Some(([1u8, 2, 3].as_slice(), 4, 2)));
     }
 }
